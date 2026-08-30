@@ -1,0 +1,161 @@
+\documentclass[tikz,border=10pt]{standalone}
+\usepackage[UTF8,fontset=fandol]{ctex}
+\usepackage{amsmath,amssymb}
+\usetikzlibrary{arrows.meta,backgrounds,positioning}
+
+% Presentation switches. Personal defaults: all off.
+\newif\ifshowformula      \showformulafalse
+\newif\ifshowdescription  \showdescriptionfalse
+\newif\ifshowcellvalues   \showcellvaluesfalse
+
+\definecolor{pastelGreen}{HTML}{DDEDD9}
+\definecolor{pastelOrange}{HTML}{F6DFC3}
+\definecolor{pastelYellow}{HTML}{F6EDB2}
+\definecolor{pastelBlue}{HTML}{D8E6F3}
+\definecolor{pastelNeutral}{HTML}{ECEFF1}
+\definecolor{arrowBlue}{HTML}{82B5D5}
+\definecolor{outlineBlue}{HTML}{7892A3}
+\definecolor{softPanel}{HTML}{F7F9FA}
+
+\pgfdeclarelayer{background}
+\pgfsetlayers{background,main}
+
+% Placeholder only. Replace with exact supplied values when cell_values=on.
+\newcommand{\CellValue}[2]{$#1#2$}
+
+% Neutral T x d input grid. Head identity does not exist before projection.
+\newcommand{\InputFace}[4]{%
+  \begin{scope}[shift={(#1,#2)}]
+    \foreach \r in {0,...,5} {
+      \foreach \c in {0,...,5} {
+        \filldraw[fill=pastelNeutral,draw=outlineBlue!72,line width=0.42pt]
+          ({\c*0.43},{-\r*0.36}) rectangle ++(0.43,-0.36);
+        \ifshowcellvalues
+          \node[font=\tiny,text=black!66] at
+            ({\c*0.43+0.215},{-\r*0.36-0.18}) {\CellValue{\r}{\c}};
+        \fi
+      }
+    }
+    \draw[outlineBlue,line width=0.65pt] (0,0) rectangle (2.58,-2.16);
+    \node[font=\small,anchor=north] at (1.29,-2.42) {#3};
+    \node[font=\scriptsize,text=black!56,anchor=north] at (1.29,-2.82) {#4};
+  \end{scope}%
+}
+
+% Continuous T x d grid for d=6, h=3, d_h=2. Each two-column
+% band has the same identity and color as exactly one output head.
+\newcommand{\TensorFace}[4]{%
+  \begin{scope}[shift={(#1,#2)}]
+    \foreach \r in {0,...,5} {
+      \foreach \c in {0,...,5} {
+        \pgfmathtruncatemacro{\group}{floor(\c/2)}
+        \ifcase\group\def\cellcolor{pastelGreen}\or
+          \def\cellcolor{pastelOrange}\or
+          \def\cellcolor{pastelBlue}\fi
+        \filldraw[fill=\cellcolor,draw=outlineBlue!72,line width=0.42pt]
+          ({\c*0.43},{-\r*0.36}) rectangle ++(0.43,-0.36);
+        \ifshowcellvalues
+          \node[font=\tiny,text=black!66] at
+            ({\c*0.43+0.215},{-\r*0.36-0.18}) {\CellValue{\r}{\c}};
+        \fi
+      }
+    }
+    \draw[outlineBlue,line width=0.65pt] (0,0) rectangle (2.58,-2.16);
+    \node[font=\small,anchor=north] at (1.29,-2.42) {#3};
+    \node[font=\scriptsize,text=black!56,anchor=north] at (1.29,-2.82) {#4};
+  \end{scope}%
+}
+
+% h x (T x d_h): the front face is T x d_h and offset sheets encode heads.
+\newcommand{\HeadStack}[4]{%
+  \foreach \s in {2,1,0} {
+    \begin{scope}[shift={({#1+0.20*\s},{#2+0.16*\s})}]
+      \foreach \r in {0,...,5} {
+        \foreach \c in {0,...,1} {
+          \pgfmathtruncatemacro{\group}{\s}
+          \ifcase\group\def\cellcolor{pastelGreen}\or
+            \def\cellcolor{pastelOrange}\or
+            \def\cellcolor{pastelBlue}\fi
+          \filldraw[fill=\cellcolor,draw=outlineBlue!72,line width=0.42pt]
+            ({\c*0.43},{-\r*0.36}) rectangle ++(0.43,-0.36);
+          % Offset back sheets encode depth only. If every head needs readable
+          % values, replace the stack with separate panels.
+          \ifshowcellvalues
+            \ifnum\s=0\relax
+              \node[font=\tiny,text=black!66] at
+                ({\c*0.43+0.215},{-\r*0.36-0.18}) {\CellValue{\r}{\c}};
+            \fi
+          \fi
+        }
+      }
+      \draw[outlineBlue,line width=0.65pt] (0,0) rectangle (0.86,-2.16);
+    \end{scope}
+  }
+  \node[font=\small,anchor=north] at ({#1+0.43},{#2-2.42}) {#3};
+  \node[font=\scriptsize,text=black!56,anchor=north]
+    at ({#1+0.43},{#2-2.82}) {#4};
+}
+
+\begin{document}
+\begin{tikzpicture}[x=1cm,y=1cm,>=Stealth]
+
+  \ifshowformula
+    \node[font=\large,align=center,text=black!84] at (7.0,7.15) {$
+      \widetilde R=XW_R,\qquad
+      R=\operatorname{permute}\!\left(\operatorname{reshape}
+      (\widetilde R;B,T,h,d_h),0,2,1,3\right),\quad R\in\{Q,K,V\}
+    $};
+  \fi
+
+  \node[font=\small\bfseries,text=black!58] at (1.08,5.55) {共享输入};
+  \node[font=\small\bfseries,text=black!58] at (6.08,5.55) {Q/K/V 线性投影};
+  \node[font=\small\bfseries,text=black!58] at (13.32,5.55) {拆分多头并换轴};
+
+  \InputFace{0.00}{1.15}{$X$}{$[B,T,d]$}
+  \TensorFace{5.00}{4.55}{$\widetilde Q$}{$[B,T,d]$}
+  \TensorFace{5.00}{1.15}{$\widetilde K$}{$[B,T,d]$}
+  \TensorFace{5.00}{-2.25}{$\widetilde V$}{$[B,T,d]$}
+
+  \HeadStack{12.60}{4.55}{$Q$}{$[B,h,T,d_h]$}
+  \HeadStack{12.60}{1.15}{$K$}{$[B,h,T,d_h]$}
+  \HeadStack{12.60}{-2.25}{$V$}{$[B,h,T,d_h]$}
+
+  \begin{pgfonlayer}{background}
+    \draw[arrowBlue!80,dashed,line width=0.65pt] (9.15,5.20) -- (9.15,-5.25);
+
+    \draw[arrowBlue,line width=0.8pt,-{Stealth[length=5pt,width=5pt]}]
+      (2.58,0.07) -- (4.92,3.47);
+    \draw[arrowBlue,line width=0.8pt,-{Stealth[length=5pt,width=5pt]}]
+      (2.58,0.07) -- (4.92,0.07);
+    \draw[arrowBlue,line width=0.8pt,-{Stealth[length=5pt,width=5pt]}]
+      (2.58,0.07) -- (4.92,-3.33);
+
+    \foreach \yy in {3.47,0.07,-3.33} {
+      \draw[arrowBlue,line width=0.8pt,-{Stealth[length=5pt,width=5pt]}]
+        (7.58,\yy) -- (12.52,\yy);
+    }
+  \end{pgfonlayer}
+
+  \node[fill=white,inner sep=1pt,font=\small] at (3.38,2.00) {$W_Q$};
+  \node[fill=white,inner sep=1pt,font=\small] at (3.38,0.32) {$W_K$};
+  \node[fill=white,inner sep=1pt,font=\small] at (3.38,-1.86) {$W_V$};
+
+  \foreach \yy in {3.47,0.07,-3.33} {
+    \node[fill=white,inner sep=1.2pt,font=\scriptsize,text=black!64]
+      at (10.55,{\yy+0.25}) {reshape $+$ permute};
+  }
+
+  \ifshowdescription
+    \node[draw=outlineBlue!42,fill=softPanel,rounded corners=2pt,
+          inner xsep=9pt,inner ysep=8pt,text width=13.5cm,align=left,
+          font=\small,text=black!76] at (7.1,-6.50) {%
+      \textbf{维度}\quad $B$：batch，$T$：序列，$d$：模型维度，
+      $h$：head 数，$d_h$：单头维度，$d=h d_h$。\\[0.35em]
+      \textbf{对象}\quad $X$ 为输入；$W_Q,W_K,W_V$ 为最后一维投影；
+      $Q,K,V$ 为多头张量。\\[0.35em]
+      \textbf{机制}\quad reshape 拆分 $d$，permute 将 head 轴移到序列轴之前。
+    };
+  \fi
+
+\end{tikzpicture}
+\end{document}

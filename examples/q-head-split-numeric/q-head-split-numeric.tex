@@ -1,0 +1,84 @@
+\documentclass[tikz,border=12pt]{standalone}
+\usepackage[UTF8,fontset=fandol]{ctex}
+\usepackage{amsmath}
+\usetikzlibrary{arrows.meta,backgrounds,positioning}
+
+\definecolor{headGreen}{HTML}{DDEDD9}
+\definecolor{headOrange}{HTML}{F6DFC3}
+\definecolor{headBlue}{HTML}{D8E6F3}
+\definecolor{arrowBlue}{HTML}{82B5D5}
+\definecolor{outlineBlue}{HTML}{7892A3}
+
+\pgfdeclarelayer{background}
+\pgfsetlayers{background,main}
+
+% A cell whose fill color carries head identity and whose number is illustrative.
+\newcommand{\NumCell}[4]{%
+  \filldraw[fill=#4,draw=outlineBlue!78,line width=0.55pt]
+    (#1,#2) rectangle ++(0.78,-0.60);
+  \node[font=\small,text=black!78] at ({#1+0.39},{#2-0.30}) {#3};
+}
+
+\begin{document}
+\begin{tikzpicture}[x=1cm,y=1cm,>=Stealth]
+  % Projected Q: [T,d] = [4,6]. Adjacent column pairs are head partitions.
+  \foreach \r/\a/\b/\c/\d/\e/\f in {
+    0/1/2/3/4/5/6,
+    1/7/8/9/10/11/12,
+    2/13/14/15/16/17/18,
+    3/19/20/21/22/23/24
+  } {
+    \NumCell{0.00}{-0.60*\r}{\a}{headGreen}
+    \NumCell{0.78}{-0.60*\r}{\b}{headGreen}
+    \NumCell{1.56}{-0.60*\r}{\c}{headOrange}
+    \NumCell{2.34}{-0.60*\r}{\d}{headOrange}
+    \NumCell{3.12}{-0.60*\r}{\e}{headBlue}
+    \NumCell{3.90}{-0.60*\r}{\f}{headBlue}
+  }
+  \draw[outlineBlue,line width=0.85pt] (0,0) rectangle (4.68,-2.40);
+  \draw[outlineBlue!85,dashed,line width=0.65pt] (1.56,0.14) -- (1.56,-2.54);
+  \draw[outlineBlue!85,dashed,line width=0.65pt] (3.12,0.14) -- (3.12,-2.54);
+  \node[font=\small\bfseries,text=black!62] at (2.34,0.65) {投影张量 $\widetilde Q$};
+  \node[font=\small,text=black!60] at (2.34,-2.88) {$[T,d]=[4,6]$};
+
+  % Head 1: columns 1--2 copied exactly.
+  \foreach \r/\a/\b in {0/1/2,1/7/8,2/13/14,3/19/20} {
+    \NumCell{8.10}{-0.60*\r}{\a}{headGreen}
+    \NumCell{8.88}{-0.60*\r}{\b}{headGreen}
+  }
+  \draw[outlineBlue,line width=0.85pt] (8.10,0) rectangle (9.66,-2.40);
+  \node[font=\small\bfseries,text=black!64] at (8.88,0.65) {head 1};
+  \node[font=\scriptsize,text=black!56] at (8.88,-2.86) {列 1--2};
+
+  % Head 2: columns 3--4 copied exactly.
+  \foreach \r/\a/\b in {0/3/4,1/9/10,2/15/16,3/21/22} {
+    \NumCell{10.55}{-0.60*\r}{\a}{headOrange}
+    \NumCell{11.33}{-0.60*\r}{\b}{headOrange}
+  }
+  \draw[outlineBlue,line width=0.85pt] (10.55,0) rectangle (12.11,-2.40);
+  \node[font=\small\bfseries,text=black!64] at (11.33,0.65) {head 2};
+  \node[font=\scriptsize,text=black!56] at (11.33,-2.86) {列 3--4};
+
+  % Head 3: columns 5--6 copied exactly.
+  \foreach \r/\a/\b in {0/5/6,1/11/12,2/17/18,3/23/24} {
+    \NumCell{13.00}{-0.60*\r}{\a}{headBlue}
+    \NumCell{13.78}{-0.60*\r}{\b}{headBlue}
+  }
+  \draw[outlineBlue,line width=0.85pt] (13.00,0) rectangle (14.56,-2.40);
+  \node[font=\small\bfseries,text=black!64] at (13.78,0.65) {head 3};
+  \node[font=\scriptsize,text=black!56] at (13.78,-2.86) {列 5--6};
+
+  \node[font=\small\bfseries,text=black!62] at (11.33,1.18) {按 head 拆分};
+  \node[font=\small,text=black!60] at (11.33,-3.35)
+    {$[h,T,d_h]=[3,4,2]$};
+
+  \begin{pgfonlayer}{background}
+    \draw[arrowBlue,line width=0.9pt,-{Stealth[length=6pt,width=6pt]}]
+      (4.78,-1.20) -- (7.90,-1.20);
+  \end{pgfonlayer}
+  \node[fill=white,inner sep=2pt,font=\small,text=black!66]
+    at (6.34,-0.87) {reshape $+$ permute};
+  \node[font=\scriptsize,text=black!54] at (6.34,-1.55)
+    {$d=h\,d_h=3\times2$};
+\end{tikzpicture}
+\end{document}

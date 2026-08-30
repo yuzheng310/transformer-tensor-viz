@@ -1,0 +1,5 @@
+interface:
+  display_name: "Transformer Tensor Viz"
+  short_description: "稳定绘制 Transformer 张量与矩阵运算图"
+  brand_color: "#76A9C7"
+  default_prompt: "使用 $transformer-tensor-viz 绘制可编辑的 Transformer 张量运算图；未指定时关闭公式、底部说明和单元格数值。"
