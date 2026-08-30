@@ -4,6 +4,18 @@
 
 输出以可编辑 TikZ 为主，并同时交付 PDF 与 PNG。默认图面简洁：不显示公式区、不显示底部说明、不在单元格写数字，也不添加作者署名、水印或 Logo。
 
+## 展示
+
+### GQA × Tensor Parallelism
+
+下面的复杂示例展示了 GQA 在 `TP=2` 场景中的完整数值计算：Q/K/V 的 rank 所有权、每个 KV head 服务两个 Q heads、因果 mask、scaled dot-product、softmax、context、局部 head concat、行并行输出投影以及最终 All-Reduce。所有多输入运算使用独立 operator node，连接线端点均绑定命名 TikZ 锚点。
+
+![GQA 与张量并行数值计算流程](examples/gqa-tp-numeric-v011/gqa-tp-attention-numeric-v011.png)
+
+[PDF 矢量版](examples/gqa-tp-numeric-v011/gqa-tp-attention-numeric-v011.pdf) · [TikZ 源码](examples/gqa-tp-numeric-v011/gqa-tp-attention-numeric-v011.tex)
+
+### Head split
+
 ![数字化 head 拆分示例](examples/q-head-split-numeric/q-head-split-numeric.png)
 
 ## 主要特性
