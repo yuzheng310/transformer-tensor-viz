@@ -1,0 +1,51 @@
+% Reusable primitives for transformer-tensor-viz.
+% Requires TikZ; callers may override colors before inputting this file.
+\usetikzlibrary{arrows.meta,backgrounds,calc,matrix,positioning}
+
+\providecolor{ttArrowBlue}{HTML}{82B5D5}
+\providecolor{ttOutlineBlue}{HTML}{7892A3}
+\providecolor{ttMutedText}{HTML}{65737C}
+\providecolor{ttMaskCell}{HTML}{E3E6E8}
+
+\tikzset{
+  tt flow/.style={draw=ttArrowBlue,line width=0.8pt,-{Stealth[length=5pt,width=5pt]}},
+  tt share/.style={draw=ttArrowBlue!88,dashed,line width=0.72pt,-{Stealth[length=4.5pt,width=4.5pt]}},
+  tt collective/.style={draw=ttArrowBlue,line width=0.9pt,-{Stealth[length=5.5pt,width=5.5pt]}},
+  tt operator/.style={draw=ttOutlineBlue!76,fill=white,circle,minimum size=0.52cm,
+    inner sep=0pt,font=\scriptsize\bfseries,text=black!72},
+  tt box operator/.style={draw=ttOutlineBlue!70,fill=white,rounded corners=1.5pt,
+    inner xsep=5pt,inner ysep=4pt,font=\scriptsize,text=black!72,align=center},
+  tt tensor symbol/.style={font=\scriptsize,text=black!72,anchor=south},
+  tt tensor shape/.style={font=\scriptsize,text=ttMutedText,anchor=north,align=center}
+}
+
+% Generic numeric matrix. The final argument is a TikZ matrix body using \&
+% as the column separator, for example: 1 \& 0 \\ 0 \& 1 \\.
+% The matrix itself is a named node, so connectors can use anchors such as
+% (q0.east). Labels are separately named as q0-symbol and q0-shape.
+\newcommand{\TTMatrix}[7]{%
+  \matrix (#1) [matrix of nodes,ampersand replacement=\&,
+    nodes in empty cells,
+    nodes={draw=ttOutlineBlue!76,fill=#4,minimum width=1.02cm,
+      minimum height=0.58cm,inner sep=0pt,font=\scriptsize,
+      text=black!78,align=center},
+    row sep=-\pgflinewidth,column sep=-\pgflinewidth] at (#2,#3) {#7};
+  \node[tt tensor symbol] (#1-symbol) at ($(#1.north)+(0,0.14)$) {#5};
+  \node[tt tensor shape] (#1-shape) at ($(#1.south)+(0,-0.15)$) {#6};
+}
+
+% Named operator primitive for matmul, add, concat, and other explicit ops.
+\newcommand{\TTOperator}[4]{%
+  \node[tt operator] (#1) at (#2,#3) {#4};
+}
+
+% Named rectangular operator for labels that carry an operand alias or a
+% multi-word operation, such as x K_0^T or row-softmax.
+\newcommand{\TTBoxOperator}[4]{%
+  \node[tt box operator] (#1) at (#2,#3) {#4};
+}
+
+% Named waypoint. Raw coordinates belong here, never at connector endpoints.
+\newcommand{\TTWaypoint}[3]{%
+  \coordinate (#1) at (#2,#3);
+}

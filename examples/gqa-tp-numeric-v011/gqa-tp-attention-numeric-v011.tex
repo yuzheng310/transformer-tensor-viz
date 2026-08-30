@@ -1,0 +1,228 @@
+\documentclass[tikz,border=12pt]{standalone}
+\usepackage[UTF8,fontset=fandol]{ctex}
+\usepackage{amsmath,amssymb}
+
+\definecolor{rankZero}{HTML}{DDEDD9}
+\definecolor{rankOne}{HTML}{D8E6F3}
+\definecolor{softOrange}{HTML}{F6DFC3}
+\definecolor{softYellow}{HTML}{F6EDB2}
+\definecolor{neutralCell}{HTML}{EEF1F3}
+\input{../../assets/tensor-diagram-macros.tex}
+
+\tikzset{
+  lane/.style={draw=ttOutlineBlue!52,dashed,line width=0.65pt},
+  stage/.style={font=\scriptsize\bfseries,text=black!58,align=center},
+  overview/.style={draw=ttOutlineBlue!68,rounded corners=2pt,
+    minimum width=3.2cm,minimum height=1.0cm,font=\scriptsize,align=center,text=black!72}
+}
+
+\begin{document}
+\begin{tikzpicture}[x=1cm,y=1cm,>=Stealth]
+
+  % ------------------------------------------------------------------
+  % Global ownership overview: no crossing fan-out arrows.
+  % ------------------------------------------------------------------
+  \node[overview,fill=neutralCell,minimum width=2.2cm] (xglobal) at (1.2,10.9)
+    {$X\ [B,T,d]$};
+  \node[overview,fill=white] (colproj) at (4.7,10.9)
+    {列并行投影\\$W_Q,\ W_K,\ W_V$};
+  \node[draw=ttOutlineBlue!70,fill=white,circle,minimum size=1.1cm,
+        inner sep=2pt,font=\scriptsize,align=center] (tpsplit) at (7.1,10.9) {TP\\split};
+  \node[overview,fill=rankZero] (rank0box) at (10.4,11.7)
+    {TP rank 0\\$Q_0,Q_1\ ;\ K_0,V_0$\\1 KV head $\rightarrow$ 2 Q heads};
+  \node[overview,fill=rankOne] (rank1box) at (10.4,10.1)
+    {TP rank 1\\$Q_2,Q_3\ ;\ K_1,V_1$\\1 KV head $\rightarrow$ 2 Q heads};
+  \node[font=\scriptsize,text=ttMutedText,anchor=west] (dims) at (12.6,10.9)
+    {$B=1,\ T=2,\ h_q=4,\ h_{kv}=2,\ d_h=2,\ TP=2$};
+
+  \begin{pgfonlayer}{background}
+    \draw[tt flow] (xglobal.east) -- (colproj.west);
+    \draw[tt flow] (colproj.east) -- (tpsplit.west);
+    \draw[tt flow] (tpsplit.north east) -- (rank0box.west);
+    \draw[tt flow] (tpsplit.south east) -- (rank1box.west);
+  \end{pgfonlayer}
+
+  % Shared stage labels. Each multi-input calculation has an explicit op node.
+  \node[stage] at (0.9,9.15) {Q head};
+  \node[stage] at (3.4,9.15) {QK operator};
+  \node[stage] at (5.8,9.15) {masked score};
+  \node[stage] at (7.7,9.15) {softmax};
+  \node[stage] at (9.6,9.15) {probability};
+  \node[stage] at (11.7,9.15) {PV operator};
+  \node[stage] at (13.9,9.15) {context};
+  \node[stage] at (18.2,9.15) {local heads};
+  \node[stage] at (21.8,9.15) {row-parallel output};
+  \node[stage] at (24.9,9.15) {partial};
+
+  % ------------------------------------------------------------------
+  % TP rank 0. Shared K0/V0 are displayed once; operators reference aliases.
+  % ------------------------------------------------------------------
+  \node[font=\small\bfseries,text=black!66,anchor=west] (rank0title) at (-0.2,8.45)
+    {TP rank 0 · GQA 组 0：$Q_0,Q_1$ 共享 $K_0,V_0$};
+
+  \TTMatrix{k0}{3.4}{6.95}{rankZero}{$K_0$}{same operand for $Q_0,Q_1$}
+    {1 \& 0 \\ 0 \& 1 \\}
+  \TTMatrix{v0}{11.7}{6.95}{rankZero}{$V_0$}{same operand for $Q_0,Q_1$}
+    {1 \& 0 \\ 0 \& 2 \\}
+  \TTMatrix{wo0}{21.8}{7.00}{rankZero}{$W_O^{(0)}$}{row-parallel shard $[4,4]$}
+    {1 \& 0 \& 0 \& 0 \\
+     0 \& 1 \& 0 \& 0 \\
+     1 \& 0 \& 0 \& 0 \\
+     0 \& 1 \& 0 \& 0 \\}
+
+  \TTMatrix{q0}{0.9}{5.20}{rankZero}{$Q_0$}{$[T,d_h]$}
+    {1 \& 0 \\ 0 \& 1 \\}
+  \TTBoxOperator{qk0op}{3.4}{5.20}{$\times K_0^\top/\sqrt2+M$}
+  \TTMatrix{s0}{5.8}{5.20}{rankZero}{$S_0$}{$[T,T]$}
+    {0.707 \& |[fill=ttMaskCell]| $-\infty$ \\ 0 \& 0.707 \\}
+  \TTBoxOperator{soft0}{7.7}{5.20}{softmax}
+  \TTMatrix{p0}{9.6}{5.20}{rankZero}{$P_0$}{$[T,T]$}
+    {1 \& 0 \\ 0.330 \& 0.670 \\}
+  \TTBoxOperator{pv0op}{11.7}{5.20}{$\times V_0$}
+  \TTMatrix{c0}{13.9}{5.20}{rankZero}{$C_0$}{$[T,d_h]$}
+    {1 \& 0 \\ 0.330 \& 1.340 \\}
+
+  \TTMatrix{q1}{0.9}{2.60}{rankZero}{$Q_1$}{$[T,d_h]$}
+    {1 \& 1 \\ 1 \& $-1$ \\}
+  \TTBoxOperator{qk1op}{3.4}{2.60}{$\times K_0^\top/\sqrt2+M$}
+  \TTMatrix{s1}{5.8}{2.60}{rankZero}{$S_1$}{$[T,T]$}
+    {0.707 \& |[fill=ttMaskCell]| $-\infty$ \\ 0.707 \& $-0.707$ \\}
+  \TTBoxOperator{soft1}{7.7}{2.60}{softmax}
+  \TTMatrix{p1}{9.6}{2.60}{rankZero}{$P_1$}{$[T,T]$}
+    {1 \& 0 \\ 0.804 \& 0.196 \\}
+  \TTBoxOperator{pv1op}{11.7}{2.60}{$\times V_0$}
+  \TTMatrix{c1}{13.9}{2.60}{rankZero}{$C_1$}{$[T,d_h]$}
+    {1 \& 0 \\ 0.804 \& 0.391 \\}
+
+  \TTBoxOperator{concat0}{16.0}{3.90}{concat}
+  \TTMatrix{clocal0}{18.2}{3.90}{rankZero}{$C^{(0)}$}{concat heads $[T,4]$}
+    {1 \& 0 \& 1 \& 0 \\ 0.330 \& 1.340 \& 0.804 \& 0.391 \\}
+  \TTBoxOperator{wo0op}{21.8}{3.90}{$\times W_O^{(0)}$}
+  \TTMatrix{partial0}{24.9}{3.90}{rankZero}{$Y^{(0)}$}{partial $[T,d]$}
+    {2 \& 0 \& 0 \& 0 \\ 1.134 \& 1.731 \& 0 \& 0 \\}
+
+  % ------------------------------------------------------------------
+  % TP rank 1.
+  % ------------------------------------------------------------------
+  \node[font=\small\bfseries,text=black!66,anchor=west] (rank1title) at (-0.2,0.63)
+    {TP rank 1 · GQA 组 1：$Q_2,Q_3$ 共享 $K_1,V_1$};
+
+  \TTMatrix{k1}{3.4}{-0.50}{rankOne}{$K_1$}{same operand for $Q_2,Q_3$}
+    {1 \& 1 \\ 1 \& $-1$ \\}
+  \TTMatrix{v1}{11.7}{-0.50}{rankOne}{$V_1$}{same operand for $Q_2,Q_3$}
+    {2 \& 1 \\ 0 \& 1 \\}
+  \TTMatrix{wo1}{21.8}{-0.45}{rankOne}{$W_O^{(1)}$}{row-parallel shard $[4,4]$}
+    {0 \& 0 \& 1 \& 0 \\
+     0 \& 0 \& 0 \& 1 \\
+     0 \& 0 \& 1 \& 0 \\
+     0 \& 0 \& 0 \& 1 \\}
+
+  \TTMatrix{q2}{0.9}{-2.25}{rankOne}{$Q_2$}{$[T,d_h]$}
+    {1 \& 0 \\ 0 \& 1 \\}
+  \TTBoxOperator{qk2op}{3.4}{-2.25}{$\times K_1^\top/\sqrt2+M$}
+  \TTMatrix{s2}{5.8}{-2.25}{rankOne}{$S_2$}{$[T,T]$}
+    {0.707 \& |[fill=ttMaskCell]| $-\infty$ \\ 0.707 \& $-0.707$ \\}
+  \TTBoxOperator{soft2}{7.7}{-2.25}{softmax}
+  \TTMatrix{p2}{9.6}{-2.25}{rankOne}{$P_2$}{$[T,T]$}
+    {1 \& 0 \\ 0.804 \& 0.196 \\}
+  \TTBoxOperator{pv2op}{11.7}{-2.25}{$\times V_1$}
+  \TTMatrix{c2}{13.9}{-2.25}{rankOne}{$C_2$}{$[T,d_h]$}
+    {2 \& 1 \\ 1.609 \& 1 \\}
+
+  \TTMatrix{q3}{0.9}{-4.85}{rankOne}{$Q_3$}{$[T,d_h]$}
+    {1 \& 1 \\ 1 \& $-1$ \\}
+  \TTBoxOperator{qk3op}{3.4}{-4.85}{$\times K_1^\top/\sqrt2+M$}
+  \TTMatrix{s3}{5.8}{-4.85}{rankOne}{$S_3$}{$[T,T]$}
+    {1.414 \& |[fill=ttMaskCell]| $-\infty$ \\ 0 \& 1.414 \\}
+  \TTBoxOperator{soft3}{7.7}{-4.85}{softmax}
+  \TTMatrix{p3}{9.6}{-4.85}{rankOne}{$P_3$}{$[T,T]$}
+    {1 \& 0 \\ 0.196 \& 0.804 \\}
+  \TTBoxOperator{pv3op}{11.7}{-4.85}{$\times V_1$}
+  \TTMatrix{c3}{13.9}{-4.85}{rankOne}{$C_3$}{$[T,d_h]$}
+    {2 \& 1 \\ 0.391 \& 1 \\}
+
+  \TTBoxOperator{concat1}{16.0}{-3.55}{concat}
+  \TTMatrix{clocal1}{18.2}{-3.55}{rankOne}{$C^{(1)}$}{concat heads $[T,4]$}
+    {2 \& 1 \& 2 \& 1 \\ 1.609 \& 1 \& 0.391 \& 1 \\}
+  \TTBoxOperator{wo1op}{21.8}{-3.55}{$\times W_O^{(1)}$}
+  \TTMatrix{partial1}{24.9}{-3.55}{rankOne}{$Y^{(1)}$}{partial $[T,d]$}
+    {0 \& 0 \& 4 \& 2 \\ 0 \& 0 \& 2 \& 2 \\}
+
+  % ------------------------------------------------------------------
+  % Named collective fan-in and final tensor.
+  % ------------------------------------------------------------------
+  \node[draw=ttOutlineBlue!72,fill=softOrange,circle,minimum size=1.7cm,
+        font=\scriptsize\bfseries,align=center,text=black!72] (reduce) at (28.6,0.25)
+        {All-Reduce\\sum};
+  \TTMatrix{yfinal}{32.0}{0.25}{neutralCell}{$Y$}{each rank receives $[T,d]$}
+    {|[fill=rankZero]| 2 \& |[fill=rankZero]| 0 \& |[fill=rankOne]| 4 \& |[fill=rankOne]| 2 \\
+     |[fill=rankZero]| 1.134 \& |[fill=rankZero]| 1.731 \& |[fill=rankOne]| 2 \& |[fill=rankOne]| 2 \\}
+
+  \TTWaypoint{r0turn}{27.35}{3.90}
+  \TTWaypoint{r0collect}{27.35}{0.95}
+  \TTWaypoint{r1turn}{27.35}{-3.55}
+  \TTWaypoint{r1collect}{27.35}{-0.45}
+
+  % ------------------------------------------------------------------
+  % Connector ledger implementation. Every endpoint is a named anchor.
+  % ------------------------------------------------------------------
+  \begin{pgfonlayer}{background}
+    % Rank 0 head pipelines.
+    \draw[tt flow] (q0.east) -- (qk0op.west);
+    \draw[tt flow] (qk0op.east) -- (s0.west);
+    \draw[tt flow] (s0.east) -- (soft0.west);
+    \draw[tt flow] (soft0.east) -- (p0.west);
+    \draw[tt flow] (p0.east) -- (pv0op.west);
+    \draw[tt flow] (pv0op.east) -- (c0.west);
+
+    \draw[tt flow] (q1.east) -- (qk1op.west);
+    \draw[tt flow] (qk1op.east) -- (s1.west);
+    \draw[tt flow] (s1.east) -- (soft1.west);
+    \draw[tt flow] (soft1.east) -- (p1.west);
+    \draw[tt flow] (p1.east) -- (pv1op.west);
+    \draw[tt flow] (pv1op.east) -- (c1.west);
+
+    \draw[tt flow] (c0.east) -- (concat0.north west);
+    \draw[tt flow] (c1.east) -- (concat0.south west);
+    \draw[tt flow] (concat0.east) -- (clocal0.west);
+    \draw[tt flow] (clocal0.east) -- (wo0op.west);
+    \draw[tt flow] (wo0op.east) -- (partial0.west);
+
+    % Rank 1 head pipelines.
+    \draw[tt flow] (q2.east) -- (qk2op.west);
+    \draw[tt flow] (qk2op.east) -- (s2.west);
+    \draw[tt flow] (s2.east) -- (soft2.west);
+    \draw[tt flow] (soft2.east) -- (p2.west);
+    \draw[tt flow] (p2.east) -- (pv2op.west);
+    \draw[tt flow] (pv2op.east) -- (c2.west);
+
+    \draw[tt flow] (q3.east) -- (qk3op.west);
+    \draw[tt flow] (qk3op.east) -- (s3.west);
+    \draw[tt flow] (s3.east) -- (soft3.west);
+    \draw[tt flow] (soft3.east) -- (p3.west);
+    \draw[tt flow] (p3.east) -- (pv3op.west);
+    \draw[tt flow] (pv3op.east) -- (c3.west);
+
+    \draw[tt flow] (c2.east) -- (concat1.north west);
+    \draw[tt flow] (c3.east) -- (concat1.south west);
+    \draw[tt flow] (concat1.east) -- (clocal1.west);
+    \draw[tt flow] (clocal1.east) -- (wo1op.west);
+    \draw[tt flow] (wo1op.east) -- (partial1.west);
+
+    % Each rank enters the named collective through its own corridor.
+    \draw[tt collective] (partial0.east) -- (r0turn) -- (r0collect) -- (reduce.north west);
+    \draw[tt collective] (partial1.east) -- (r1turn) -- (r1collect) -- (reduce.south west);
+    \draw[tt collective] (reduce.east) -- (yfinal.west);
+  \end{pgfonlayer}
+
+  % Functional lane boundaries are open on the collective side.
+  \draw[lane] (-0.35,1.15) -- (-0.35,8.72) -- (27.05,8.72);
+  \draw[lane] (-0.35,1.15) -- (27.05,1.15);
+  \draw[lane] (-0.35,0.82) -- (-0.35,-6.12) -- (27.05,-6.12);
+  \draw[lane] (-0.35,0.82) -- (27.05,0.82);
+
+  \node[font=\scriptsize,text=ttMutedText,anchor=west] (roundingnote) at (0.0,-6.62)
+    {Illustrative values; causal-mask cells are $-\infty$; decimals are rounded to three places.};
+
+\end{tikzpicture}
+\end{document}

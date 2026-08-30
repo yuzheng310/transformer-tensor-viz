@@ -10,6 +10,7 @@
 
 - 形状优先：相同 shape 使用相同几何尺寸，reshape、transpose、split、concat 必须保持真实的维度关系。
 - 颜色有语义：颜色表示 head、shard 或轴分区，并在变换前后保持一一对应，不作为随机装饰。
+- 连线有端口：多输入运算使用独立 operator node，所有箭头连接命名锚点，不依赖会随版式失效的硬编码端点。
 - 专项模板：内置横向 Q/K/V 投影与多头拆分模板。
 - 三个独立开关：`formula`、`description`、`cell_values`，默认全部关闭。
 - 可编辑交付：优先生成 TikZ，同时渲染 PDF 和 PNG 做视觉检查。
@@ -83,12 +84,18 @@ $transformer-tensor-viz 画一个带演示数字的三头拆分例子；cell_val
 ├── agents/openai.yaml
 ├── assets/
 │   ├── qkv-horizontal-template.tex
-│   └── reference-transformer-matrix-style.png
-├── references/option-contract.md
-└── examples/q-head-split-numeric/
-    ├── q-head-split-numeric.tex
-    ├── q-head-split-numeric.pdf
-    └── q-head-split-numeric.png
+│   ├── reference-transformer-matrix-style.png
+│   └── tensor-diagram-macros.tex
+├── references/
+│   ├── option-contract.md
+│   └── connector-routing.md
+├── scripts/lint_tikz_connectors.py
+├── tests/
+│   ├── fixtures/
+│   └── test_lint_tikz_connectors.py
+└── examples/
+    ├── q-head-split-numeric/
+    └── gqa-tp-numeric-v011/
 ```
 
 `SKILL.md` 是行为规范的唯一入口；条件性细节放在 `references/`；可复用模板与视觉参考放在 `assets/`；可运行、可比较的结果放在 `examples/`。
@@ -105,11 +112,13 @@ $transformer-tensor-viz 画一个带演示数字的三头拆分例子；cell_val
 
 ```bash
 uv run --with pyyaml python ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py .
+python3 scripts/lint_tikz_connectors.py path/to/diagram.tex
+python3 -m unittest discover -s tests -v
 tectonic assets/qkv-horizontal-template.tex
 tectonic examples/q-head-split-numeric/q-head-split-numeric.tex
 ```
 
-还需要人工检查渲染 PNG：shape 是否一致、轴顺序是否正确、颜色映射是否连续、文字是否重叠、关闭区域是否留下空白，以及是否意外出现署名。
+还需要人工检查渲染 PNG：shape 是否一致、轴顺序是否正确、颜色映射是否连续、每个箭头是否落在命名对象边界、文字是否重叠、关闭区域是否留下空白，以及是否意外出现署名。
 
 ## 版本策略
 

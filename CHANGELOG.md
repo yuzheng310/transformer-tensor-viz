@@ -2,6 +2,19 @@
 
 本项目遵循语义化版本。所有影响 Skill 行为、模板或输出契约的变更都记录在这里。
 
+## [0.1.1] - 2026-08-31
+
+### Fixed
+
+- 多输入运算现在必须使用独立 operator node，避免共享 K/V 箭头落入 score 或 context 网格及其标签区。
+- 连接器端点必须使用命名 TikZ 锚点；新增 lint，拒绝硬编码端点与连接到 symbol/shape 标签的箭头。
+- 新增通用 `\TTMatrix` 资源，避免超过 TeX 九参数限制或错误展开数值列表。
+
+### Added
+
+- 共享操作数、fan-out、fan-in、collective 与多 lane 图的连接线路由契约。
+- 对 GQA/TP 等复杂图的矩阵宏 smoke-test 和箭头端点回归检查。
+
 ## [0.1.0] - 2026-08-31
 
 ### Added
